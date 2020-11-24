@@ -3,13 +3,13 @@ project('hashmap', 'c')
 hashmap_src = files('hashmap.c')
 hashmap_inc = include_directories('.')
 
-hashmap_lib = library('hashmap', 
-  hashmap_src, 
+hashmap_lib = library('hashmap',
+  hashmap_src,
   include_directories: hashmap_inc
 )
 
-hashmap_exe = executable('hashmap', 
-  hashmap_src, 
+hashmap_exe = executable('hashmap_test',
+  hashmap_src,
   include_directories: hashmap_inc,
   c_args: '-DHASHMAP_TEST',
 )
