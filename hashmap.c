@@ -15,6 +15,10 @@ static void (*_free)(void *) = NULL;
 #define hmmalloc (_malloc?_malloc:malloc)
 #define hmfree (_free?_free:free)
 
+#ifdef _MSC_BUILD
+#define alloca(x) _alloca(x)
+#endif
+
 // hashmap_set_allocator allows for configuring a custom allocator for
 // all hashmap library operations. This function, if needed, should be called
 // only once at startup and a prior to calling hashmap_new().
@@ -184,7 +188,7 @@ void *hashmap_set(struct hashmap *map, void *item) {
         }
     }
 
-    char edata[map->bucketsz]; // VLA
+    char *edata = alloca(map->bucketsz);
     struct bucket *entry = (void*)edata;
     entry->hash = get_hash(map, item);
     entry->dib = 1;
@@ -550,7 +554,7 @@ static void xfree(void *ptr) {
 }
 
 static void shuffle(void *array, size_t numels, size_t elsize) {
-    char tmp[elsize];
+    char *tmp = alloca(elsize);
     char *arr = array;
     for (size_t i = 0; i < numels - 1; i++) {
         int j = i + rand() / (RAND_MAX / (numels - i) + 1);
@@ -685,7 +689,7 @@ static void all() {
     uint64_t bytes = 0; \
     clock_t begin = clock(); \
     for (int i = 0; i < N; i++) { \
-        (code); \
+        code; \
     } \
     clock_t end = clock(); \
     double elapsed_secs = (double)(end - begin) / CLOCKS_PER_SEC; \
@@ -728,6 +732,7 @@ static void benchmarks() {
 
     map = hashmap_new(sizeof(int), 0, seed, seed, hash_int, compare_ints_udata, 
                       NULL);
+	
     bench("set", N, {
         int *v = hashmap_set(map, &vals[i]);
         assert(!v);
