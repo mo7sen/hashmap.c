@@ -79,9 +79,9 @@ static uint64_t get_hash(struct hashmap *map, void *key) {
 // following `hash` function. These can be any value you wish but it's often 
 // best to use randomly generated values.
 // Param `hash` is a function that generates a hash value for an item. It's
-// important that you provice good hash function, otherwise will perform poorly
-// or be vulnerable to Denial-of-service attacks. This implementation comes
-// with two helper functions `hashmap_sip()` and `hashmap_murmur()`
+// important that you provide a good hash function, otherwise it will perform
+// poorly or be vulnerable to Denial-of-service attacks. This implementation
+// comes with two helper functions `hashmap_sip()` and `hashmap_murmur()`.
 // Param `compare` is a function that compares items in the tree. See the 
 // qsort stdlib function for an example of how this function works.
 // The hashmap must be freed with hashmap_free(). 
@@ -132,6 +132,29 @@ struct hashmap *hashmap_new(size_t elsize, size_t cap,
     map->shrinkat = map->nbuckets*0.10;
     return map;    
 }
+
+// hashmap_clear quickly clears the map. 
+// When the update_cap is provided, the map's capacity will be updated to match
+// the currently number of allocated buckets. This is an optimization to ensure
+// that this operation does not perform any allocations.
+void hashmap_clear(struct hashmap *map, bool update_cap) {
+    map->count = 0;
+    if (update_cap) {
+        map->cap = map->nbuckets;
+    } else if (map->nbuckets != map->cap) {
+        void *new_buckets = hmmalloc(map->bucketsz*map->cap);
+        if (new_buckets) {
+            hmfree(map->buckets);
+            map->buckets = new_buckets;
+        }
+        map->nbuckets = map->cap;
+    }
+    memset(map->buckets, 0, map->bucketsz*map->nbuckets);
+    map->mask = map->nbuckets-1;
+    map->growat = map->nbuckets*0.75;
+    map->shrinkat = map->nbuckets*0.10;
+}
+
 
 static bool resize(struct hashmap *map, size_t new_cap) {
     struct hashmap *map2 = hashmap_new(map->elsize, new_cap, map->seed1, 
@@ -670,6 +693,36 @@ static void all() {
             assert(v && *v == vals[j]);
         }
     }
+
+    for (int i = 0; i < N; i++) {
+        while (true) {
+            assert(!hashmap_set(map, &vals[i]));
+            if (!hashmap_oom(map)) {
+                break;
+            }
+        }
+    }
+
+    assert(map->count != 0);
+    size_t prev_cap = map->cap;
+    hashmap_clear(map, true);
+    assert(prev_cap < map->cap);
+    assert(map->count == 0);
+
+
+    for (int i = 0; i < N; i++) {
+        while (true) {
+            assert(!hashmap_set(map, &vals[i]));
+            if (!hashmap_oom(map)) {
+                break;
+            }
+        }
+    }
+
+    prev_cap = map->cap;
+    hashmap_clear(map, false);
+    assert(prev_cap == map->cap);
+
     hashmap_free(map);
 
     xfree(vals);
