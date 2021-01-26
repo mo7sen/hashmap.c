@@ -1,4 +1,8 @@
-project('hashmap', 'c')
+project('hashmap', 'c',
+  default_options: [
+    'default_library=static',
+  ]
+)
 
 hashmap_src = files('hashmap.c')
 hashmap_inc = include_directories('.')
