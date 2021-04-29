@@ -56,11 +56,19 @@ HM_API uint64_t hashmap_murmur(const void *data, size_t len,
 #define CAT2(a,b) a##b
 #define CAT(a,b) CAT2(a,b)
 
+#ifdef _WIN32
+#define __HM_UNUSED__
+#elif defined(__GNUC__)
+#define __HM_UNUSED__ __attribute__((unused))
+#else
+#error("Unsupported Compiler")
+#endif
+
 #define HashFunction(K) CAT(HashFunction_,K)
 #define CmpFunction(K)  CAT(CmpFunction_,K)
 
 #define HashFunctionDefineCustom(K, pVar) \
-  static uint64_t                         \
+  __HM_UNUSED__ static uint64_t           \
   HashFunction(K)(                        \
       const K* pVar,                      \
       uint64_t seed0,                     \
@@ -77,10 +85,10 @@ HM_API uint64_t hashmap_murmur(const void *data, size_t len,
   }
 
 #define CmpFunctionDefineCustom(K, pVar0, pVar1) \
-  static int                                     \
-  CmpFunction(K)(                               \
-      const K* pVar0,                             \
-      const K* pVar1,                             \
+  __HM_UNUSED__ static int                       \
+  CmpFunction(K)(                                \
+      const K* pVar0,                            \
+      const K* pVar1,                            \
       void *udata)
 
 #define CmpFunctionDefine(K)                 \
@@ -100,92 +108,103 @@ HM_API uint64_t hashmap_murmur(const void *data, size_t len,
 #define HashmapFunction(K,V,Name) CAT(CAT(CAT(CAT(CAT(CAT(Hashmap,Name),_),K),_),V),_Function)
 #define HashmapDestructor(K,V)    CAT(CAT(CAT(CAT(CAT(CAT(Hashmap,Name),_),K),_),V),_Destructor)
 
-#define HashmapNewDefine(K, V)                \
-  static Map(K, V) HashmapMethod(K, V, New)() \
-  {                                           \
-    return hashmap_new(                       \
-        sizeof(K) + sizeof(V),                \
-        0, 0, 0,                              \
-        (hm_hash_fn)HashFunction(K),          \
-        (hm_cmp_fn)CmpFunction(K),            \
-        NULL);                                \
+#define HashmapNewDefine(K, V)       \
+  __HM_UNUSED__ static Map(K, V)     \
+  HashmapMethod(K, V, New)()         \
+  {                                  \
+    return hashmap_new(              \
+        sizeof(K) + sizeof(V),       \
+        0, 0, 0,                     \
+        (hm_hash_fn)HashFunction(K), \
+        (hm_cmp_fn)CmpFunction(K),   \
+        NULL);                       \
   }
 
-#define HashmapPushDefine(K, V)                                      \
-  static void HashmapMethod(K, V, Push)(Map(K, V) map, K key, V val) \
-  {                                                                  \
-    HashmapEntry(K, V) entry = {key, val};                           \
-    HashmapEntry(K, V) *prev = hashmap_set(map, &entry);       \
-    if(prev) {                                                       \
-      HashmapDestructor(K,V)(prev);                                  \
-    }                                                                \
+#define HashmapPushDefine(K, V)                          \
+  __HM_UNUSED__ static void                              \
+  HashmapMethod(K, V, Push)(Map(K, V) map, K key, V val) \
+  {                                                      \
+    HashmapEntry(K, V) entry = {key, val};               \
+    HashmapEntry(K, V) *prev = hashmap_set(map, &entry); \
+    if(prev) {                                           \
+      HashmapDestructor(K,V)(prev);                      \
+    }                                                    \
   }
 
-#define HashmapGetDefine(K, V)                             \
-  static V* HashmapMethod(K, V, Get)(Map(K, V) map, K key) \
+#define HashmapGetDefine(K, V)                          \
+  __HM_UNUSED__ static V*                               \
+  HashmapMethod(K, V, Get)(Map(K, V) map, K key)        \
+  {                                                     \
+    HashmapEntry(K, V) entry = {.key = key};            \
+    HashmapEntry(K, V) *res = hashmap_get(map, &entry); \
+    if(res) {                                           \
+      return &(res->value);                             \
+    }                                                   \
+    return NULL;                                        \
+  }
+
+#define HashmapRemoveDefine(K, V)                          \
+  __HM_UNUSED__ static void                                \
+  HashmapMethod(K, V, Remove)(Map(K, V) map, K key)        \
   {                                                        \
     HashmapEntry(K, V) entry = {.key = key};               \
-    HashmapEntry(K, V) *res = hashmap_get(map, &entry);    \
-    if(res) {                                              \
-      return &(res->value);                                \
+    HashmapEntry(K, V) *old = hashmap_delete(map, &entry); \
+    if(old) {                                              \
+      HashmapDestructor(K, V)(old);                        \
     }                                                      \
-    return NULL;                                           \
   }
 
-#define HashmapRemoveDefine(K, V)                               \
-  static void HashmapMethod(K, V, Remove)(Map(K, V) map, K key) \
-  {                                                             \
-    HashmapEntry(K, V) entry = {.key = key};                    \
-    HashmapEntry(K, V) *old = hashmap_delete(map, &entry);      \
-    if(old) {                                                   \
-      HashmapDestructor(K, V)(old);                             \
-    }                                                           \
+#define HashmapSizeDefine(K, V)            \
+  __HM_UNUSED__ static size_t              \
+  HashmapMethod(K, V, Size)(Map(K, V) map) \
+  {                                        \
+    return hashmap_count(map);             \
   }
 
-#define HashmapSizeDefine(K, V)                          \
-  static size_t HashmapMethod(K, V, Size)(Map(K, V) map) \
-  {                                                      \
-    return hashmap_count(map);                           \
+#define HashmapFreeDefine(K, V)            \
+  __HM_UNUSED__ static void                \
+  HashmapMethod(K, V, Free)(Map(K, V) map) \
+  {                                        \
+    HashmapMethod(K, V, Clear)(map);       \
+    hashmap_free(map);                     \
   }
 
-#define HashmapFreeDefine(K, V)                        \
-  static void HashmapMethod(K, V, Free)(Map(K, V) map) \
-  {                                                    \
-    HashmapMethod(K, V, Clear)(map);                   \
-    hashmap_free(map);                                 \
+#define HashmapClearDefine(K, V)             \
+  __HM_UNUSED__ static bool                  \
+  destroyEach(const void *data, void *udata) \
+  {                                          \
+    HashmapDestructor(K, V)(data);           \
+    return true;                             \
+  }                                          \
+  __HM_UNUSED__ static void                  \
+  HashmapMethod(K, V, Clear)(Map(K, V) map)  \
+  {                                          \
+    hashmap_scan(map, destroyEach, NULL);    \
+    hashmap_clear(map, false);               \
   }
 
-#define HashmapClearDefine(K, V)                         \
-  static bool destroyEach(const void *data, void *udata) \
-  {                                                      \
-    HashmapDestructor(K, V)(data);                       \
-    return true;                                         \
-  }                                                      \
-  static void HashmapMethod(K, V, Clear)(Map(K, V) map)  \
-  {                                                      \
-    hashmap_scan(map, destroyEach, NULL);                \
-    hashmap_clear(map, false);                           \
+#define HashmapIterImplDefine(K, V)                                \
+  __HM_UNUSED__ static bool                                        \
+  HashmapFunction(K, V, IterImpl)(const void *data, void* iter_fn) \
+  {                                                                \
+    const HashmapEntry(K, V) *entry = data;                        \
+    ((void(*)(K,V))iter_fn)(entry->key, entry->value);             \
+    return true;                                                   \
   }
 
-#define HashmapIterImplDefine(K, V)                                            \
-  static bool HashmapFunction(K, V, IterImpl)(const void *data, void* iter_fn) \
-  {                                                                            \
-    const HashmapEntry(K, V) *entry = data;                                    \
-    ((void(*)(K,V))iter_fn)(entry->key, entry->value);                         \
-    return true;                                                               \
-  }
+#define HashmapIterDefine(K, V)                                  \
+  __HM_UNUSED__ static void                                      \
+  HashmapMethod(K, V, Iter)(Map(K, V) map, void(*iter_fn)(K,V))  \
+  {                                                              \
+    hashmap_scan(map, HashmapFunction(K, V, IterImpl), iter_fn); \
+  }                                                              \
 
-#define HashmapIterDefine(K, V)                                             \
-  static void HashmapMethod(K, V, Iter)(Map(K, V) map, void(*iter_fn)(K,V)) \
-  {                                                                         \
-    hashmap_scan(map, HashmapFunction(K, V, IterImpl), iter_fn);            \
-  }                                                                         \
-
-#define HashmapDestructorDefine(K, V, K_destr, V_destr)                      \
-  static inline void HashmapDestructor(K, V)(const HashmapEntry(K,V) *entry) \
-  {                                                                          \
-    if(K_destr) ((void(*)(K))K_destr)(entry->key);                           \
-    if(V_destr) ((void(*)(V))V_destr)(entry->value);                         \
+#define HashmapDestructorDefine(K, V, K_destr, V_destr)   \
+  __HM_UNUSED__ static inline void                        \
+  HashmapDestructor(K, V)(const HashmapEntry(K,V) *entry) \
+  {                                                       \
+    if(K_destr) ((void(*)(K))K_destr)(entry->key);        \
+    if(V_destr) ((void(*)(V))V_destr)(entry->value);      \
   }
 
 // Both are the same for now, might need to change?
