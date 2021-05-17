@@ -93,7 +93,7 @@ HM_API uint64_t hashmap_murmur(const void *data, size_t len,
 
 #define CmpFunctionDefine(K)                 \
   CmpFunctionDefineCustom(K, pItem0, pItem1) \
-  {                                          \
+  { (void)udata;                             \
     return memcmp(pItem0, pItem1, sizeof(K));\
   }
 
