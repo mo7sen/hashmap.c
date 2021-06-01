@@ -161,14 +161,6 @@ HM_API uint64_t hashmap_murmur(const void *data, size_t len,
     return hashmap_count(map);             \
   }
 
-#define HashmapFreeDefine(K, V)            \
-  __HM_UNUSED__ static void                \
-  HashmapMethod(K, V, Free)(Map(K, V) map) \
-  {                                        \
-    HashmapMethod(K, V, Clear)(map);       \
-    hashmap_free(map);                     \
-  }
-
 #define HashmapClearDefine(K, V)             \
   __HM_UNUSED__ static bool                  \
   destroyEach(const void *data, void *udata) \
@@ -270,5 +262,158 @@ HM_API uint64_t hashmap_murmur(const void *data, size_t len,
 #define __HashmapDefine_IMPL_14(...) static_assert("Passed too many arguments to HashmapDefine. Accepted argument counts are (2, 3, 4).");
 #define __HashmapDefine_IMPL_15(...) static_assert("Passed too many arguments to HashmapDefine. Accepted argument counts are (2, 3, 4).");
 
+
+
+#define Set(K) struct hashmap *
+#define Hashset(K) CAT(HashsetStruct_, K)
+
+#define HashsetMethod(K,Name)   CAT(CAT(CAT(CAT(Hashset,Name),_),K),_Method)
+#define HashsetFunction(K,Name) CAT(CAT(CAT(CAT(Hashset,Name),_),K),_Function)
+#define HashsetDestructor(K)    CAT(CAT(CAT(CAT(Hashset,Name),_),K),_Destructor)
+
+#define HashsetNewDefine(K)          \
+  __HM_UNUSED__ static Set(K)        \
+  HashsetMethod(K, New)()            \
+  {                                  \
+    return hashmap_new(              \
+        sizeof(K),                   \
+        0, 0, 0,                     \
+        (hm_hash_fn)HashFunction(K), \
+        (hm_cmp_fn)CmpFunction(K),   \
+        NULL);                       \
+  }
+
+#define HashsetPushDefine(K)                \
+  __HM_UNUSED__ static void                 \
+  HashsetMethod(K, Push)(Set(K) set, K key) \
+  {                                         \
+    K *prev = hashmap_set(set, &key);       \
+    if(prev) {                              \
+      HashsetDestructor(K)(prev);           \
+    }                                       \
+  }
+
+#define HashsetRemoveDefine(K)                \
+  __HM_UNUSED__ static void                   \
+  HashsetMethod(K, Remove)(Set(K) set, K key) \
+  {                                           \
+    K *old = hashmap_delete(set, &key);       \
+    if(old) {                                 \
+      HashsetDestructor(K)(old);              \
+    }                                         \
+  }
+
+#define HashsetClearDefine(K)                \
+  __HM_UNUSED__ static bool                  \
+  destroyEach(const void *data, void *udata) \
+  {                                          \
+    HashsetDestructor(K)(data);              \
+    return true;                             \
+  }                                          \
+  __HM_UNUSED__ static void                  \
+  HashsetMethod(K, Clear)(Set(K) set)        \
+  {                                          \
+    hashmap_scan(set, destroyEach, NULL);    \
+    hashmap_clear(set, false);               \
+  }
+
+#define HashsetFreeDefine(K)         \
+  __HM_UNUSED__ static void          \
+  HashsetMethod(K, Free)(Set(K) set) \
+  {                                  \
+    HashsetMethod(K, Clear)(set);    \
+    hashmap_free(set);               \
+  }
+
+#define HashsetSizeDefine(K)         \
+  __HM_UNUSED__ static size_t        \
+  HashsetMethod(K, Size)(Set(K) set) \
+  {                                  \
+    return hashmap_count(set);       \
+  }
+
+#define HashsetIterImplDefine(K)                                \
+  __HM_UNUSED__ static bool                                     \
+  HashsetFunction(K, IterImpl)(const void *data, void* iter_fn) \
+  {                                                             \
+    ((void(*)(K))iter_fn)(*(K*)data);                           \
+    return true;                                                \
+  }
+
+#define HashsetIterDefine(K)                                  \
+  __HM_UNUSED__ static void                                   \
+  HashsetMethod(K, Iter)(Set(K) set, void(*iter_fn)(K))       \
+  {                                                           \
+    hashmap_scan(set, HashsetFunction(K, IterImpl), iter_fn); \
+  }                                                           \
+
+#define HashsetDestructorDefine(K, K_destr)  \
+  __HM_UNUSED__ static inline void           \
+  HashsetDestructor(K)(const K *key)         \
+  {                                          \
+    if(K_destr) ((void(*)(K))K_destr)(*key); \
+  }
+
+#define HashsetHasDefine(K)                  \
+  __HM_UNUSED__ static bool                  \
+  HashsetMethod(K, Get)(Set(K) set, K key)   \
+  {                                          \
+    HashmapEntry(K, V) entry = {.key = key}; \
+    return (bool) hashmap_get(set, &key);    \
+  }
+
+#define HashsetMethodDefine(K, Name)   CAT(CAT(Hashset, Name), Define)(K)
+#define HashsetFunctionDefine(K, Name) CAT(CAT(Hashset, Name), Define)(K)
+
+#define HashsetDefine(...) CAT(__HashsetDefine_IMPL_,VARGS_NARG(__VA_ARGS__))(__VA_ARGS__)
+
+#define __HashsetDefine_IMPL_1(K) __HashsetDefine_IMPL_2(K, NULL)
+#define __HashsetDefine_IMPL_2(K, destr)    \
+  HashsetEntryDefine(K)                     \
+  HashsetDestructorDefine(K, K_destr)       \
+  HashsetMethodDefine(K, New)               \
+  HashsetMethodDefine(K, Push)              \
+  HashsetMethodDefine(K, Remove)            \
+  HashsetMethodDefine(K, Size)              \
+  HashsetMethodDefine(K, Clear)             \
+  HashsetMethodDefine(K, Free)              \
+  HashsetFunctionDefine(K, IterImpl)        \
+  HashsetMethodDefine(K, Iter)              \
+  HashsetMethodDefine(K, Has)               \
+  static struct {                           \
+    uint32_t key_size;                      \
+    Set(K)(*new)();                         \
+    void(*push)(Set(K),K);                  \
+    void(*remove)(Set(K),K);                \
+    size_t(*size)(Set(K));                  \
+    void(*free)(Set(K));                    \
+    void(*clear)(Set(K));                   \
+    void(*iter)(Set(K), void(*iter_fn)(K)); \
+    bool(*has)(Set(K),K);                   \
+  } Hashset(K) = {                          \
+    .key_size  = sizeof(K),                 \
+    .new       = HashsetMethod(K,New),      \
+    .push      = HashsetMethod(K,Push),     \
+    .remove    = HashsetMethod(K,Remove),   \
+    .size      = HashsetMethod(K,Size),     \
+    .free      = HashsetMethod(K,Free),     \
+    .clear     = HashsetMethod(K,Clear),    \
+    .iter      = HashsetMethod(K,Iter),     \
+    .has = HashsetMethod(K, has),           \
+  };
+
+#define __HashsetDefine_IMPL_3(...)  static_assert("Passed too many arguments to HashsetDefine. Accepted argument counts are (1, 2).");
+#define __HashsetDefine_IMPL_4(...)  static_assert("Passed too many arguments to HashsetDefine. Accepted argument counts are (1, 2).");
+#define __HashsetDefine_IMPL_5(...)  static_assert("Passed too many arguments to HashsetDefine. Accepted argument counts are (1, 2).");
+#define __HashsetDefine_IMPL_6(...)  static_assert("Passed too many arguments to HashsetDefine. Accepted argument counts are (1, 2).");
+#define __HashsetDefine_IMPL_7(...)  static_assert("Passed too many arguments to HashsetDefine. Accepted argument counts are (1, 2).");
+#define __HashsetDefine_IMPL_8(...)  static_assert("Passed too many arguments to HashsetDefine. Accepted argument counts are (1, 2).");
+#define __HashsetDefine_IMPL_9(...)  static_assert("Passed too many arguments to HashsetDefine. Accepted argument counts are (1, 2).");
+#define __HashsetDefine_IMPL_10(...) static_assert("Passed too many arguments to HashsetDefine. Accepted argument counts are (1, 2).");
+#define __HashsetDefine_IMPL_11(...) static_assert("Passed too many arguments to HashsetDefine. Accepted argument counts are (1, 2).");
+#define __HashsetDefine_IMPL_12(...) static_assert("Passed too many arguments to HashsetDefine. Accepted argument counts are (1, 2).");
+#define __HashsetDefine_IMPL_13(...) static_assert("Passed too many arguments to HashsetDefine. Accepted argument counts are (1, 2).");
+#define __HashsetDefine_IMPL_14(...) static_assert("Passed too many arguments to HashsetDefine. Accepted argument counts are (1, 2).");
+#define __HashsetDefine_IMPL_15(...) static_assert("Passed too many arguments to HashsetDefine. Accepted argument counts are (1, 2).");
 
 #endif
