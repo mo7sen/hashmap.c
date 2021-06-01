@@ -175,6 +175,14 @@ HM_API uint64_t hashmap_murmur(const void *data, size_t len,
     hashmap_clear(map, false);               \
   }
 
+#define HashmapFreeDefine(K, V)            \
+  __HM_UNUSED__ static void                \
+  HashmapMethod(K, V, Free)(Map(K, V) map) \
+  {                                        \
+    HashmapMethod(K, V, Clear)(map);       \
+    hashmap_free(map);                     \
+  }
+
 #define HashmapIterImplDefine(K, V)                                \
   __HM_UNUSED__ static bool                                        \
   HashmapFunction(K, V, IterImpl)(const void *data, void* iter_fn) \
