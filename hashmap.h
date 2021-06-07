@@ -53,8 +53,8 @@ HM_API uint64_t hashmap_sip(const void *data, size_t len,
 HM_API uint64_t hashmap_murmur(const void *data, size_t len, 
                         uint64_t seed0, uint64_t seed1);
 
-#define CAT2(a,b) a##b
-#define CAT(a,b) CAT2(a,b)
+#define __HM_CAT2(a,b) a##b
+#define __HM_CAT(a,b) __HM_CAT2(a,b)
 
 #ifdef _WIN32
 #define __HM_UNUSED__
@@ -64,8 +64,8 @@ HM_API uint64_t hashmap_murmur(const void *data, size_t len,
 #error("Unsupported Compiler")
 #endif
 
-#define HashFunction(K) CAT(HashFunction_,K)
-#define CmpFunction(K)  CAT(CmpFunction_,K)
+#define HashFunction(K) __HM_CAT(HashFunction_,K)
+#define CmpFunction(K)  __HM_CAT(CmpFunction_,K)
 
 #define HashFunctionDefineCustom(K, pVar) \
   __HM_UNUSED__ static uint64_t           \
@@ -99,14 +99,14 @@ HM_API uint64_t hashmap_murmur(const void *data, size_t len,
 
 #define Map(K, V) struct hashmap *
 
-#define Hashmap(K, V) CAT(CAT(CAT(HashmapStruct_, K), _), V)
+#define Hashmap(K, V) __HM_CAT(__HM_CAT(__HM_CAT(HashmapStruct_, K), _), V)
 
-#define HashmapEntry(K, V) CAT(CAT(CAT(HashmapEntryStruct_, K), _), V)
+#define HashmapEntry(K, V) __HM_CAT(__HM_CAT(__HM_CAT(HashmapEntryStruct_, K), _), V)
 #define HashmapEntryDefine(K, V) typedef struct { K key; V value; } HashmapEntry(K,V);
 
-#define HashmapMethod(K,V,Name)   CAT(CAT(CAT(CAT(CAT(CAT(Hashmap,Name),_),K),_),V),_Method)
-#define HashmapFunction(K,V,Name) CAT(CAT(CAT(CAT(CAT(CAT(Hashmap,Name),_),K),_),V),_Function)
-#define HashmapDestructor(K,V)    CAT(CAT(CAT(CAT(CAT(CAT(Hashmap,Name),_),K),_),V),_Destructor)
+#define HashmapMethod(K,V,Name)   __HM_CAT(__HM_CAT(__HM_CAT(__HM_CAT(__HM_CAT(__HM_CAT(Hashmap,Name),_),K),_),V),_Method)
+#define HashmapFunction(K,V,Name) __HM_CAT(__HM_CAT(__HM_CAT(__HM_CAT(__HM_CAT(__HM_CAT(Hashmap,Name),_),K),_),V),_Function)
+#define HashmapDestructor(K,V)    __HM_CAT(__HM_CAT(__HM_CAT(__HM_CAT(__HM_CAT(__HM_CAT(Hashmap,Name),_),K),_),V),_Destructor)
 
 #define HashmapNewDefine(K, V)       \
   __HM_UNUSED__ static Map(K, V)     \
@@ -208,15 +208,15 @@ HM_API uint64_t hashmap_murmur(const void *data, size_t len,
   }
 
 // Both are the same for now, might need to change?
-#define HashmapMethodDefine(K, V, Name)   CAT(CAT(Hashmap, Name), Define)(K, V)
-#define HashmapFunctionDefine(K, V, Name) CAT(CAT(Hashmap, Name), Define)(K, V)
+#define HashmapMethodDefine(K, V, Name)   __HM_CAT(__HM_CAT(Hashmap, Name), Define)(K, V)
+#define HashmapFunctionDefine(K, V, Name) __HM_CAT(__HM_CAT(Hashmap, Name), Define)(K, V)
 
 #define VARGS_NARG(...) VARGS_NARG_IMPL(__VA_ARGS__, VARGS_RSEQ_N())
 #define VARGS_NARG_IMPL(...) VARGS_ARG_N(__VA_ARGS__)
 #define VARGS_ARG_N(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, N, ...) N
 #define VARGS_RSEQ_N() 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
 
-#define HashmapDefine(...) CAT(__HashmapDefine_IMPL_,VARGS_NARG(__VA_ARGS__))(__VA_ARGS__)
+#define HashmapDefine(...) __HM_CAT(__HashmapDefine_IMPL_,VARGS_NARG(__VA_ARGS__))(__VA_ARGS__)
 
 #define __HashmapDefine_IMPL_1(x) static_assert("Can't define a hashmap with a single type. Need (Key,Val) typepair");
 #define __HashmapDefine_IMPL_2(K, V) __HashmapDefine_IMPL_4(K, V, NULL, NULL)
@@ -273,11 +273,11 @@ HM_API uint64_t hashmap_murmur(const void *data, size_t len,
 
 
 #define Set(K) struct hashmap *
-#define Hashset(K) CAT(HashsetStruct_, K)
+#define Hashset(K) __HM_CAT(HashsetStruct_, K)
 
-#define HashsetMethod(K,Name)   CAT(CAT(CAT(CAT(Hashset,Name),_),K),_Method)
-#define HashsetFunction(K,Name) CAT(CAT(CAT(CAT(Hashset,Name),_),K),_Function)
-#define HashsetDestructor(K)    CAT(CAT(CAT(CAT(Hashset,Name),_),K),_Destructor)
+#define HashsetMethod(K,Name)   __HM_CAT(__HM_CAT(__HM_CAT(__HM_CAT(Hashset,Name),_),K),_Method)
+#define HashsetFunction(K,Name) __HM_CAT(__HM_CAT(__HM_CAT(__HM_CAT(Hashset,Name),_),K),_Function)
+#define HashsetDestructor(K)    __HM_CAT(__HM_CAT(__HM_CAT(__HM_CAT(Hashset,Name),_),K),_Destructor)
 
 #define HashsetNewDefine(K)          \
   __HM_UNUSED__ static Set(K)        \
@@ -370,10 +370,10 @@ HM_API uint64_t hashmap_murmur(const void *data, size_t len,
     return (bool) hashmap_get(set, &key);    \
   }
 
-#define HashsetMethodDefine(K, Name)   CAT(CAT(Hashset, Name), Define)(K)
-#define HashsetFunctionDefine(K, Name) CAT(CAT(Hashset, Name), Define)(K)
+#define HashsetMethodDefine(K, Name)   __HM_CAT(__HM_CAT(Hashset, Name), Define)(K)
+#define HashsetFunctionDefine(K, Name) __HM_CAT(__HM_CAT(Hashset, Name), Define)(K)
 
-#define HashsetDefine(...) CAT(__HashsetDefine_IMPL_,VARGS_NARG(__VA_ARGS__))(__VA_ARGS__)
+#define HashsetDefine(...) __HM_CAT(__HashsetDefine_IMPL_,VARGS_NARG(__VA_ARGS__))(__VA_ARGS__)
 
 #define __HashsetDefine_IMPL_1(K) __HashsetDefine_IMPL_2(K, NULL)
 #define __HashsetDefine_IMPL_2(K, destr)    \
