@@ -163,7 +163,7 @@ HM_API uint64_t hashmap_murmur(const void *data, size_t len,
 
 #define HashmapClearDefine(K, V)             \
   __HM_UNUSED__ static bool                  \
-  destroyEach(const void *data, void *udata) \
+  HashmapFunction(K, V, destroyEach)(const void *data, void *udata) \
   {                                          \
     HashmapDestructor(K, V)(data);           \
     return true;                             \
@@ -171,7 +171,7 @@ HM_API uint64_t hashmap_murmur(const void *data, size_t len,
   __HM_UNUSED__ static void                  \
   HashmapMethod(K, V, Clear)(Map(K, V) map)  \
   {                                          \
-    hashmap_scan(map, destroyEach, NULL);    \
+    hashmap_scan(map, HashmapFunction(K, V, destroyEach), NULL);    \
     hashmap_clear(map, false);               \
   }
 
@@ -313,7 +313,7 @@ HM_API uint64_t hashmap_murmur(const void *data, size_t len,
 
 #define HashsetClearDefine(K)                \
   __HM_UNUSED__ static bool                  \
-  destroyEach(const void *data, void *udata) \
+  HashsetFunction(K, destroyEach)(const void *data, void *udata) \
   {                                          \
     HashsetDestructor(K)(data);              \
     return true;                             \
@@ -321,7 +321,7 @@ HM_API uint64_t hashmap_murmur(const void *data, size_t len,
   __HM_UNUSED__ static void                  \
   HashsetMethod(K, Clear)(Set(K) set)        \
   {                                          \
-    hashmap_scan(set, destroyEach, NULL);    \
+    hashmap_scan(set, HashsetFunction(K, destroyEach), NULL);    \
     hashmap_clear(set, false);               \
   }
 
