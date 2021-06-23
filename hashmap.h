@@ -165,6 +165,7 @@ HM_API uint64_t hashmap_murmur(const void *data, size_t len,
   __HM_UNUSED__ static bool                  \
   HashmapFunction(K, V, destroyEach)(const void *data, void *udata) \
   {                                          \
+    (void)udata;                             \
     HashmapDestructor(K, V)(data);           \
     return true;                             \
   }                                          \
@@ -183,20 +184,20 @@ HM_API uint64_t hashmap_murmur(const void *data, size_t len,
     hashmap_free(map);                     \
   }
 
-#define HashmapIterImplDefine(K, V)                                \
-  __HM_UNUSED__ static bool                                        \
-  HashmapFunction(K, V, IterImpl)(const void *data, void* iter_fn) \
-  {                                                                \
-    const HashmapEntry(K, V) *entry = data;                        \
-    ((void(*)(K,V))iter_fn)(entry->key, entry->value);             \
-    return true;                                                   \
+#define HashmapIterImplDefine(K, V)                                      \
+  __HM_UNUSED__ static bool                                              \
+  HashmapFunction(K, V, IterImpl)(const void *data, void(*iter_fn)(K,V)) \
+  {                                                                      \
+    const HashmapEntry(K, V) *entry = data;                              \
+    iter_fn(entry->key, entry->value);                                   \
+    return true;                                                         \
   }
 
 #define HashmapIterDefine(K, V)                                  \
   __HM_UNUSED__ static void                                      \
   HashmapMethod(K, V, Iter)(Map(K, V) map, void(*iter_fn)(K,V))  \
   {                                                              \
-    hashmap_scan(map, HashmapFunction(K, V, IterImpl), iter_fn); \
+    hashmap_scan(map, (bool(*)(const void*, void*))HashmapFunction(K, V, IterImpl), (void*)iter_fn); \
   }                                                              \
 
 #define HashmapDestructorDefine(K, V, K_destr, V_destr)   \
@@ -315,6 +316,7 @@ HM_API uint64_t hashmap_murmur(const void *data, size_t len,
   __HM_UNUSED__ static bool                  \
   HashsetFunction(K, destroyEach)(const void *data, void *udata) \
   {                                          \
+    (void)udata;                             \
     HashsetDestructor(K)(data);              \
     return true;                             \
   }                                          \
