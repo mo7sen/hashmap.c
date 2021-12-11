@@ -271,9 +271,9 @@ HM_API uint64_t hashmap_murmur(const void *data, size_t len,
 #define __HashmapDefine_IMPL_14(...) static_assert("Passed too many arguments to HashmapDefine. Accepted argument counts are (2, 3, 4).");
 #define __HashmapDefine_IMPL_15(...) static_assert("Passed too many arguments to HashmapDefine. Accepted argument counts are (2, 3, 4).");
 
-
-
-#define Set(K) struct hashmap *
+// TODO: Prefix the entire API
+// Commented because it collides with some C++ files in MSVC
+// #define Set(K) struct hashmap *
 #define Hashset(K) __HM_CAT(HashsetStruct_, K)
 
 #define HashsetMethod(K,Name)   __HM_CAT(__HM_CAT(__HM_CAT(__HM_CAT(Hashset,Name),_),K),_Method)
